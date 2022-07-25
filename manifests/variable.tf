@@ -59,7 +59,6 @@ variable "dbpassword" {
 variable "domain" {
   type    = string
   default = "sampleapp.ml"
-
 }
 # variable "dbsg" {
 #   type = set(string)

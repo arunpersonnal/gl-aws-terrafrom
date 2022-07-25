@@ -642,17 +642,22 @@ resource "aws_cloudwatch_log_group" "cloudtrail" {
 resource "aws_cloudtrail" "s3-cloudtrail" {
   name                          = "${var.environment}-cloudtrail"
   s3_bucket_name                = aws_s3_bucket.s3-cloudtrail.id
-  s3_key_prefix                 = "terra"
+  s3_key_prefix                 = "ct"
   include_global_service_events = true
-  sns_topic_name = aws_sns_topic.webserver_sns_topic.display_name
-  cloud_watch_logs_group_arn = aws_cloudwatch_log_group.cloudtrail.arn
+  enable_logging    =  true
+  is_multi_region_trail = true
+  sns_topic_name = aws_sns_topic.webserver_sns_topic.name
+  cloud_watch_logs_group_arn = "${aws_cloudwatch_log_group.cloudtrail.arn}:*"
   cloud_watch_logs_role_arn  = aws_iam_role.cloudtrail.arn
+
+  depends_on = [aws_s3_bucket_policy.s3-cloudtrail-policy, aws_s3_bucket.s3-cloudtrail]
+
   tags = {
     Name        = "${var.environment}-cloudtrail"
     Environment = var.environment
   }
 
-  depends_on = [aws_s3_bucket.s3-cloudtrail]
+  
 }
 
 resource "aws_s3_bucket" "s3-cloudtrail" {
@@ -660,7 +665,7 @@ resource "aws_s3_bucket" "s3-cloudtrail" {
   force_destroy = true
 }
 
-resource "aws_s3_bucket_policy" "s3-cloudtrail" {
+resource "aws_s3_bucket_policy" "s3-cloudtrail-policy" {
   bucket = aws_s3_bucket.s3-cloudtrail.id
   policy = <<POLICY
 {
@@ -682,7 +687,7 @@ resource "aws_s3_bucket_policy" "s3-cloudtrail" {
               "Service": "cloudtrail.amazonaws.com"
             },
             "Action": "s3:PutObject",
-            "Resource": "${aws_s3_bucket.s3-cloudtrail.arn}/prefix/AWSLogs/${data.aws_caller_identity.current.account_id}/*",
+            "Resource": "${aws_s3_bucket.s3-cloudtrail.arn}/ct/AWSLogs/${data.aws_caller_identity.current.account_id}/*",
             "Condition": {
                 "StringEquals": {
                     "s3:x-amz-acl": "bucket-owner-full-control"
@@ -727,7 +732,7 @@ resource "aws_iam_role_policy" "aws_iam_role_policy_cloudTrail_cloudWatch" {
                 "logs:CreateLogStream"
             ],
             "Resource": [
-                "${aws_cloudwatch_log_group.cloudtrail.arn}:*"
+                "${aws_cloudwatch_log_group.cloudtrail.arn}"
             ]
         },
         {
@@ -737,7 +742,7 @@ resource "aws_iam_role_policy" "aws_iam_role_policy_cloudTrail_cloudWatch" {
                 "logs:PutLogEvents"
             ],
             "Resource": [
-                "${aws_cloudwatch_log_group.cloudtrail.arn}:*"
+                "${aws_cloudwatch_log_group.cloudtrail.arn}"
             ]
         }
     ]
